@@ -20,15 +20,19 @@ def hough_line(arr, bin_sz):
 
     # Rho and Theta ranges
     # *************how do you deal with negative values when calculating the width and height*******
-    thetas = np.deg2rad(np.arange(0.0, 180.0, .5))              # defaults to 50 samples from -90 to 90
+    thetas = np.deg2rad(np.arange(0.0, 360.0, .5))              # defaults to 50 samples from -90 to 90
     min_x = cart_arr.min(axis=0)[0]
     min_y = cart_arr.min(axis=0)[1]
     max_x = cart_arr.max(axis=0)[0]
     max_y = cart_arr.max(axis=0)[1]
     min_dist = math.sqrt(min_y ** 2 + min_x ** 2)
     # print(min_x, min_y)
-    width = abs(max_y - min_y)           # y range 
-    height = abs(max_x - min_x)            # x range
+    if(max_y*min_y >= 0):
+        width = max(abs(max_y), abs(min_y))          # y range (including space from min to 0)
+    else: width = abs(max_y - min_y)
+    if(max_x*min_x >= 0):
+        height = max(abs(max_x), abs(min_x))         # x range (including space from min to 0)
+    else: height = abs(max_x - min_x)
     # print("maximims: (", max_x, max_y, ")")
     # print("minimums: (", min_x, min_y, ")")
     # print(width, height)
@@ -73,8 +77,8 @@ def hough_line(arr, bin_sz):
             accumulator[rho, int(math.floor(t_idx/theta_bin_size))] += 1  #int(math.floor(rho/rho_bin_size))
     
     # --- Display Accumulator ---
-    # Scatter plot 
-    # !!!!!!!! Runtime Warning !!!!!!!!!
+    # # Scatter plot 
+    # # !!!!!!!! Runtime Warning !!!!!!!!!
     # accumulator_data_lst = []
     # print(accumulator.shape)
     # for i in range(accumulator.shape[0]): # rho
@@ -86,8 +90,6 @@ def hough_line(arr, bin_sz):
     #             accumulator_data_lst.append([theta_elt, rho_elt, acc_value])
     # accumulator_data = np.array(accumulator_data_lst)
     
-    acc_max_val = accumulator.max()
-    print(acc_max_val)
     # plt.rcParams["figure.figsize"] = [7, 7]
     # plt.rcParams["figure.autolayout"] = True
     # plt.scatter(accumulator_data[:, 0], accumulator_data[:, 1]+min_y, c=accumulator_data[:, 2], s=1) 
@@ -113,17 +115,39 @@ def hough_line(arr, bin_sz):
 
     # np.savetxt("accumulator", accumulator)
 
+    # accumulator_data_lst = []
+    # # print(accumulator.shape)
+    # max_acc_val = 0
+    # hough_theta = 0
+    # hough_rho = 0
+    # for i in range(accumulator.shape[0]): # rho
+    #     for j in range(accumulator.shape[1]): # theta
+    #         if (accumulator[i][j] > 0):
+    #             rho_elt = i - diag_len          # mapping [0, 2*diag] (index) --> [-diag, diag] (real rho value)
+    #             theta_elt = j                   # mapping [0, 360] (index) --> [0, 180] (real angle value)
+    #             if (max_acc_val < accumulator[i][j]):
+    #                 max_acc_val = accumulator[i][j]
+    #                 hough_rho = rho_elt+min_y
+    #                 hough_theta = math.radians(theta_elt)
+    
+    acc_max_val = accumulator.max()
+    # print(acc_max_val)
+
+
     idx = np.argmax(accumulator)                        # returns the index when searching row by row
-    # print("lid", l_idx)
-    # print(idx/accumulator.shape[1])
-    # print("acc", accumulator.shape[1])
-    rho = rhos[idx % accumulator.shape[1]]
-    print(rho)
-    if(rho > 0):
-        rho = rho - min_dist
-    else: rho = rho + min_dist
-    temp = idx % accumulator.shape[1]
-    # print(l_accumulator.shape[1])
-    theta = thetas[idx % accumulator.shape[1]]          # only theta neccessary to show orthogonality
-    # return accumulator, thetas, rhos
+    theta = thetas[idx % accumulator.shape[1]]
+    rho_offset = min_x*math.cos(theta*bin_sz) + min_y*math.sin(theta*bin_sz)
+    rho = rhos[round(idx / accumulator.shape[1])] 
+    # print("TEST RHO", rho)
+    rho = rho + rho_offset     # right now, rho is approx the distance from min pt to hough line (p, theta)
+    
+    # print("MIN_X", min_x)
+    # print("MIN_Y", min_y)
+    # print("MIN_DIST", min_dist)
+    # if(rho > 0):
+    #     rho = rho - min_dist
+    # else: rho = rho + min_dist
+    
+    # print("TEST THETA", theta*180/math.pi)
+    # print("TEST RHO", rho)
     return theta*bin_sz, rho, acc_max_val
