@@ -18,22 +18,23 @@ def hough_line(arr, bin_sz):
         cart_arr[i][1] = r*math.sin(math.radians(theta)) # y val
     # print(cart_arr)
 
+    # Find the translation constants (x_trans, y_trans) and apply to the whole data set so the HT can be done in Q1
+    x_trans = cart_arr.min(axis=0)[0]
+    y_trans = cart_arr.min(axis=0)[1]
+   
+    for i in range(len(cart_arr)):
+        if x_trans < 0:
+            cart_arr[i][0] += -x_trans
+        if y_trans < 0:
+            cart_arr[i][1] += -y_trans  
+
+
     # Rho and Theta ranges
     # *************how do you deal with negative values when calculating the width and height*******
     thetas = np.deg2rad(np.arange(0.0, 180.0, .5))              # defaults to 50 samples from -90 to 90
-    min_x = cart_arr.min(axis=0)[0]
-    min_y = cart_arr.min(axis=0)[1]
-    max_x = cart_arr.max(axis=0)[0]
-    max_y = cart_arr.max(axis=0)[1]
-    min_dist = math.sqrt(min_y ** 2 + min_x ** 2)
-    # print(min_x, min_y)
-    width = abs(max_y - min_y)           # y range 
-    height = abs(max_x - min_x)            # x range
-    # print("maximims: (", max_x, max_y, ")")
-    # print("minimums: (", min_x, min_y, ")")
-    # print(width, height)
+    width = cart_arr.max(axis=0)[0]           # y range 
+    height = cart_arr.max(axis=0)[1]            # x range
     diag_len = int(np.ceil(np.sqrt(width * width + height * height)))   # max_dist
-    # print("diag", diag_len)
     rhos = np.linspace(-diag_len, diag_len, diag_len * 2)     # returns evenly spaced valued from +/- max_dist
 
     # Cache some resuable values
@@ -52,20 +53,8 @@ def hough_line(arr, bin_sz):
 
     # Vote in the hough accumulator
     for i in range(len(x_idxs)):
-        # print(i, len(x_idxs))
-        # address coordinates in each quadrant
-        # if (max_x < 0 and max_y < 0):
-        #     x = -(x_idxs[i] - min_x)
-        #     y = -(y_idxs[i] - min_y)
-        if(max_x < 0 and max_y >= 0):
-            x = -(x_idxs[i] - min_x)
-            y = (y_idxs[i] - min_y)
-        elif(max_y < 0 and max_x >= 0):
-            x = -(x_idxs[i] - min_x)
-            y = (y_idxs[i] - min_y)
-        else:
-            x = x_idxs[i] - min_x
-            y = y_idxs[i] - min_y
+        x = x_idxs[i]
+        y = y_idxs[i]
 
         for t_idx in range(num_thetas):
             # Calculate rho. diag_len is added for a positive index
@@ -117,13 +106,17 @@ def hough_line(arr, bin_sz):
     # print("lid", l_idx)
     # print(idx/accumulator.shape[1])
     # print("acc", accumulator.shape[1])
-    rho = rhos[idx % accumulator.shape[1]]
-    print(rho)
-    if(rho > 0):
-        rho = rho - min_dist
-    else: rho = rho + min_dist
-    temp = idx % accumulator.shape[1]
+    rho = rhos[round(idx / accumulator.shape[1])]
+    # temp = idx % accumulator.shape[1]
     # print(l_accumulator.shape[1])
     theta = thetas[idx % accumulator.shape[1]]          # only theta neccessary to show orthogonality
     # return accumulator, thetas, rhos
-    return theta*bin_sz, rho, acc_max_val
+
+    # Undo the translation in polar space
+    theta = theta*bin_sz # theta stays the same 
+    if x_trans < 0:
+        rho -= -x_trans*math.cos(theta)
+    if y_trans < 0:
+        rho -= -y_trans*math.sin(theta)   
+
+    return theta, rho, acc_max_val

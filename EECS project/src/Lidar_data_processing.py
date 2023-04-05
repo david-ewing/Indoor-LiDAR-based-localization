@@ -97,11 +97,11 @@ for i in range(lidar_data_maxima_sz):
         u_range = lidar_data[(index+1):(index+1 + maxima_inspection_range), :]
     
     l_theta, l_rho, l_acc_max = hough.hough_line(l_range, 2)          # only theta neccessary to show orthogonality
-    print("Lower angle (red):", np.rad2deg(l_theta))
+    print("Lower angle (red):", np.rad2deg(l_theta), l_rho)
 
     # upper range
     u_theta, u_rho, u_acc_max = hough.hough_line(u_range, 2)
-    print("Upper angle (blue):", np.rad2deg(u_theta))
+    print("Upper angle (blue):", np.rad2deg(u_theta), u_rho)
     
     # np.savetxt("l_accumulator", l_accumulator)
     # np.savetxt("u_accumulator", u_accumulator)
@@ -124,9 +124,7 @@ for i in range(lidar_data_maxima_sz):
     print("   ", edge_angle, "degree edge")
     if(edge_angle < 105 and edge_angle > 75 and (u_acc_max + l_acc_max) > 13): # acc_max value describes the certainty that the hough transfor is accurate
         print("***********  Corner spotted! At", -(lidar_data_maxima[i][0]+flip_angle), "degrees. **************")
-        
-        # corners_lst.append([lidar_data_maxima[i][1]*math.cos(-(lidar_data_maxima[i][0]+flip_angle)), lidar_data_maxima[i][1]*math.sin(-(lidar_data_maxima[i][0]+flip_angle))])
-        # corners_lst.append([-(lidar_data_maxima[i][0]+flip_angle), lidar_data_maxima[i][1]])
+
         corners_lst.append([-1*lidar_data_maxima[i][1]*math.sin(-math.radians(lidar_data_maxima[i][0]+flip_angle)), lidar_data_maxima[i][1]*math.cos(-math.radians(lidar_data_maxima[i][0]+flip_angle))])
         corners_lst.append([y_intersection, x_intersection])
     else: print("No corner at", -(lidar_data_maxima[i][0]+flip_angle), "degrees.")
@@ -140,7 +138,7 @@ for i in range(lidar_data_maxima_sz):
         ax1.plot(l_range[j][0]* -np.pi/180, l_range[j][1],'r+')
     for j in range(len(u_range)):
         ax1.plot(u_range[j][0]* -np.pi/180, u_range[j][1],'b+')
-    # plt.show() 
+    plt.show() 
 
 # print(corners_lst[0], corners_lst[2])
 # print(corners_lst[1], corners_lst[3])
