@@ -62,8 +62,8 @@ def hough_line(arr, bin_sz):
             accumulator[rho, int(math.floor(t_idx/theta_bin_size))] += 1  #int(math.floor(rho/rho_bin_size))
     
     # --- Display Accumulator ---
-    # Scatter plot 
-    # !!!!!!!! Runtime Warning !!!!!!!!!
+    # # Scatter plot 
+    # # !!!!!!!! Runtime Warning !!!!!!!!!
     # accumulator_data_lst = []
     # print(accumulator.shape)
     # for i in range(accumulator.shape[0]): # rho
@@ -75,8 +75,6 @@ def hough_line(arr, bin_sz):
     #             accumulator_data_lst.append([theta_elt, rho_elt, acc_value])
     # accumulator_data = np.array(accumulator_data_lst)
     
-    acc_max_val = accumulator.max()
-    print(acc_max_val)
     # plt.rcParams["figure.figsize"] = [7, 7]
     # plt.rcParams["figure.autolayout"] = True
     # plt.scatter(accumulator_data[:, 0], accumulator_data[:, 1]+min_y, c=accumulator_data[:, 2], s=1) 
@@ -101,6 +99,25 @@ def hough_line(arr, bin_sz):
     # plt.show()
 
     # np.savetxt("accumulator", accumulator)
+
+    # accumulator_data_lst = []
+    # # print(accumulator.shape)
+    # max_acc_val = 0
+    # hough_theta = 0
+    # hough_rho = 0
+    # for i in range(accumulator.shape[0]): # rho
+    #     for j in range(accumulator.shape[1]): # theta
+    #         if (accumulator[i][j] > 0):
+    #             rho_elt = i - diag_len          # mapping [0, 2*diag] (index) --> [-diag, diag] (real rho value)
+    #             theta_elt = j                   # mapping [0, 360] (index) --> [0, 180] (real angle value)
+    #             if (max_acc_val < accumulator[i][j]):
+    #                 max_acc_val = accumulator[i][j]
+    #                 hough_rho = rho_elt+min_y
+    #                 hough_theta = math.radians(theta_elt)
+    
+    acc_max_val = accumulator.max()
+    # print(acc_max_val)
+
 
     idx = np.argmax(accumulator)                        # returns the index when searching row by row
     # print("lid", l_idx)
