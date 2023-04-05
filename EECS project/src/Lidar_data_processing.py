@@ -55,7 +55,7 @@ lidar_data_sample = np.array(lidar_data_sample_lst)
 # -- Identify Local Maxima --
 range_maxima_lst = []
 lidar_data_maxima_sz = 0
-spacing = 40 # the number of datapoints to the left and right you look to determine if data[i] is a local maximum
+spacing = 10 # the number of datapoints to the left and right you look to determine if data[i] is a local maximum
 for i in range(spacing, lidar_data_sample_sz-spacing):
     max = True
     for j in range(1, spacing):
@@ -72,7 +72,7 @@ lidar_data_maxima = np.array(range_maxima_lst)
 
 # -- Search Data Around Maxima -- 
 # inspect area left and right of the local maxima and pass to hough transform
-maxima_inspection_range = 50
+maxima_inspection_range = 40
 flip_angle = -360
 corners_lst = []
 for i in range(lidar_data_maxima_sz):
