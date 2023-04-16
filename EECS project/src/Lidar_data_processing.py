@@ -233,7 +233,7 @@ for i in range(lidar_data_maxima_sz):
         plt.ylabel("Y")
         plt.title("Deviation")
         # Display the plot
-        plt.show() 
+        # plt.show() 
 
         # -- Plot Maxima Search Area (lower and upper) -- 
         fig1, ax1 = plt.subplots(subplot_kw={'projection': 'polar'})
@@ -245,7 +245,7 @@ for i in range(lidar_data_maxima_sz):
             ax1.plot(u_range[j][0]* -np.pi/180, u_range[j][1],'b+')    
         plt.show() 
 
-    # else: print("No corner at", -(lidar_data_maxima[i][0]+flip_angle), "degrees.")
+    else: print("No corner at", -(lidar_data_maxima[i][0]+flip_angle), "degrees.")
 
     
      
@@ -261,7 +261,5 @@ for i in range(lidar_data_maxima_sz):
     #     ax1.plot(u_range[j][0]* -np.pi/180, u_range[j][1],'b+')    
     # plt.show() 
 
-# print(corners_lst[0], corners_lst[2])
-# print(corners_lst[1], corners_lst[3])
 print(corners_lst)
 

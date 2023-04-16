@@ -2,7 +2,7 @@ python
 numpy
 pandas
 scipy
-serial
+pyserial
 matplotlib
 jupyter_client=7.3.4
 jupyter_core=4.10.0
@@ -12,3 +12,4 @@ jupyterlab_pygments=0.2.2
 jupyterlab_server=2.15.1
 pip
 rplidar-roboticia
+scikit-learn

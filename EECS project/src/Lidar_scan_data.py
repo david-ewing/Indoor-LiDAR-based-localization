@@ -19,7 +19,7 @@ ax.set_theta_zero_location("N")
 
 
 # sets the com port of RPLidar:
-lidar = RPLidar('COM3')    # '/dev/ttyS3' for WSL 
+lidar = RPLidar('COM5')    # '/dev/ttyS3' for WSL 
 
 scans = []
 num_datapoints = 0

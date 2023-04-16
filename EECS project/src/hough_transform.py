@@ -30,7 +30,6 @@ def hough_line(arr, bin_sz):
 
 
     # Rho and Theta ranges
-    # *************how do you deal with negative values when calculating the width and height*******
     thetas = np.deg2rad(np.arange(0.0, 180.0, .5))              # defaults to 50 samples from -90 to 90
     width = cart_arr.max(axis=0)[0]           # y range 
     height = cart_arr.max(axis=0)[1]            # x range
@@ -116,6 +115,11 @@ def hough_line(arr, bin_sz):
     #                 hough_theta = math.radians(theta_elt)
     
     acc_max_val = accumulator.max()
+    # non_zero = np.count_nonzero(accumulator)
+    # total_val = np.product(accumulator.shape)
+    # sparsity = (total_val - non_zero) / total_val
+    # print(sparsity)
+
     # print(acc_max_val)
 
 
@@ -123,7 +127,9 @@ def hough_line(arr, bin_sz):
     # print("lid", l_idx)
     # print(idx/accumulator.shape[1])
     # print("acc", accumulator.shape[1])
-    rho = rhos[round(idx / accumulator.shape[1])]
+    if(len(rhos) == 0):
+        rho = 0
+    else: rho = rhos[round(idx / accumulator.shape[1])]
     # temp = idx % accumulator.shape[1]
     # print(l_accumulator.shape[1])
     theta = thetas[idx % accumulator.shape[1]]          # only theta neccessary to show orthogonality
