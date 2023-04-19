@@ -7,8 +7,7 @@ Notes:
 https://bucket-download.slamtec.com/3c1b2ba89f2a553f03893768648660b7528f779f/LM310_SLAMTEC_rplidarkit_usermanual_A2%20series_v1.0_en.pdf
 
 
-virtualenv --python C:\Python38\python.exe eecs-env
-.\eecs-env\Scripts\activate
+eecs_env\Scripts\activate
 
 
 ToDo:

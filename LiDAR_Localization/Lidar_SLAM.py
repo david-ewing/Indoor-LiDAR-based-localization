@@ -8,6 +8,8 @@ import matplotlib.transforms as mtransforms
 import numpy as np
 import csv  
 import math
+import time
+import keyboard
 
 # -- Settings --
 np.set_printoptions(suppress=True)
@@ -47,6 +49,12 @@ def polar_to_cartesian_arr(arr):
         cart_arr[i][0] = r*math.cos(math.radians(theta)) # x val
         cart_arr[i][1] = r*math.sin(math.radians(theta)) # y val
     return cart_arr
+
+def norm(pt1, pt2):
+    x1, y1 = pt1
+    x2, y2 = pt2
+    n = math.sqrt((x1-x2)**2 + (y1-y2)**2)
+    return n
 
 def swap(A, B):
     temp = A
@@ -248,52 +256,73 @@ def match_transform(A, B):
     return d_x, d_y, d_theta
 
 
+def main():    
+    num_iter = 0
+    corner_data_buffer = []
+    state = [0, 0, 0] # state variables defined as x, y, theta
 
-def main():
-    # -- Choose Data File, Sort, & Index --
-    lidar_data = get_Lidar_scan()
-    lidar_data = lidar_data[lidar_data[:, 0].argsort()]
-    indexed_data = label_data(lidar_data)
+    # Scans every 5 seconds and measures the change in state
+    while True:
+        # -- Choose Data File, Sort, & Index --
+        lidar_data = get_Lidar_scan()
+        lidar_data = lidar_data[lidar_data[:, 0].argsort()]
+        indexed_data = label_data(lidar_data)
+        # print(lidar_data)
+        lidar_data_maxima = scan_local_maxima(indexed_data, 30, 1)
 
-    lidar_data_maxima = scan_local_maxima(indexed_data, 30, 1)
+        # -- Search Data Around Maxima -- 
+        # inspect area left and right of the local maxima and pass to hough transform
+        maxima_inspection_range = 30
+        flip_angle = -360
+        corners_list = []
+        for i in range(len(lidar_data_maxima)):
+            index = int(lidar_data_maxima[i][2])
+            # print("\nInspecting possible corner at", -(lidar_data_maxima[i][0]+flip_angle), "degrees...")
 
-    # -- Search Data Around Maxima -- 
-    # inspect area left and right of the local maxima and pass to hough transform
-    maxima_inspection_range = 30
-    flip_angle = -360
-    corners_lst = []
-    for i in range(len(lidar_data_maxima)):
-        index = int(lidar_data_maxima[i][2])
-        # print("\nInspecting possible corner at", -(lidar_data_maxima[i][0]+flip_angle), "degrees...")
+            # get LOWER and UPPER ranges 
+            l_range, u_range = upper_lower_Polar_Wrap(maxima_inspection_range, index, lidar_data)
+            l_theta, l_rho, l_acc_max = hough.hough_line(l_range, 2)
+            u_theta, u_rho, u_acc_max = hough.hough_line(u_range, 2)
+            # print("Lower angle (red):", np.rad2deg(l_theta), l_rho)
+            # print("Upper angle (blue):", np.rad2deg(u_theta), u_rho)
+            
+            m_u, b_u = hough_to_cartesian_line(u_rho, u_theta)
+            m_l, b_l = hough_to_cartesian_line(l_rho, l_theta)
+            x_intersection, y_intersection = linear_intersection(m_l, b_l, m_u, b_u)
+            edge_angle = abs(np.rad2deg(l_theta) - np.rad2deg(u_theta))
+            # print("lower line:", m_l, "x + ", b_l)
+            # print("upper line:", m_u, "x + ", b_u)
 
-        # get LOWER and UPPER ranges 
-        l_range, u_range = upper_lower_Polar_Wrap(maxima_inspection_range, index, lidar_data)
-        l_theta, l_rho, l_acc_max = hough.hough_line(l_range, 2)
-        u_theta, u_rho, u_acc_max = hough.hough_line(u_range, 2)
-        # print("Lower angle (red):", np.rad2deg(l_theta), l_rho)
-        # print("Upper angle (blue):", np.rad2deg(u_theta), u_rho)
+            # error_range, A_l_cart, A_u_cart, B_l_cart, B_u_cart, m_A_u, b_A_u, m_B_u, b_B_u, m_A_l, b_A_l, m_B_l, b_B_l = hough_error(l_range, u_range, m_l, m_u, b_l, b_u)
+            
+            if(edge_angle < 100 and edge_angle > 80 and (u_acc_max + l_acc_max) > 13): # higher acc_max value means that the line has more clarity
+                # print("***********  Corner spotted! At", -(lidar_data_maxima[i][0]+flip_angle), "degrees. **************")
+                corners_list.append([y_intersection, x_intersection])
+                # plot_deviation(A_u_cart, B_u_cart, A_l_cart, B_l_cart, m_A_u, b_A_u, m_B_u, b_B_u, m_A_l, b_A_l, m_B_l, b_B_l)
+                # plot_maxima_search_area(l_range, u_range)
+            # else: print("No corner at", -(lidar_data_maxima[i][0]+flip_angle), "degrees.")
+        # print(corners_list)
         
-        m_u, b_u = hough_to_cartesian_line(u_rho, u_theta)
-        m_l, b_l = hough_to_cartesian_line(l_rho, l_theta)
-        x_intersection, y_intersection = linear_intersection(m_l, b_l, m_u, b_u)
-        edge_angle = abs(np.rad2deg(l_theta) - np.rad2deg(u_theta))
-        # print("lower line:", m_l, "x + ", b_l)
-        # print("upper line:", m_u, "x + ", b_u)
-
-        # error_range, A_l_cart, A_u_cart, B_l_cart, B_u_cart, m_A_u, b_A_u, m_B_u, b_B_u, m_A_l, b_A_l, m_B_l, b_B_l = hough_error(l_range, u_range, m_l, m_u, b_l, b_u)
+        if corners_list: # if list is not empty 
+            corner_data_buffer.append(corners_list)
+            print("Number of Corners:", len(corners_list))
+            if num_iter > 0:
+                d_x, d_y, d_theta = match_transform(corner_data_buffer[-2], corner_data_buffer[-1])
+                print("\ndx", d_x, "\ndy", d_y, "\ndTheta", d_theta)
+                state[0] += d_x
+                state[1] += d_y
+                state[2] += d_theta
+                print("state", state)
+        else: print("not enough corners")
+        num_iter += 1
+                
+        if keyboard.is_pressed("q"):
+            # Key was pressed
+            break
         
-        if(edge_angle < 100 and edge_angle > 80 and (u_acc_max + l_acc_max) > 13): # higher acc_max value means that the line has more clarity
-            # print("***********  Corner spotted! At", -(lidar_data_maxima[i][0]+flip_angle), "degrees. **************")
-            corners_lst.append([y_intersection, x_intersection])
-            # plot_deviation(A_u_cart, B_u_cart, A_l_cart, B_l_cart, m_A_u, b_A_u, m_B_u, b_B_u, m_A_l, b_A_l, m_B_l, b_B_l)
-            plot_maxima_search_area(l_range, u_range)
-        # else: print("No corner at", -(lidar_data_maxima[i][0]+flip_angle), "degrees.")
-
-    print(corners_lst)
-
+        print("Sleeping...zzz...")
+        time.sleep(5)
     
-
-
 if __name__ == "__main__":
     main()
 
