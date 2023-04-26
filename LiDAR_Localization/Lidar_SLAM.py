@@ -10,6 +10,7 @@ import csv
 import math
 import time
 import keyboard
+from tabulate import tabulate
 
 # -- Settings --
 np.set_printoptions(suppress=True)
@@ -41,11 +42,11 @@ def linear_intersection(m1, b1, m2, b2):
     y = m1*x + b1
     return x, y
 
-def polar_to_cartesian_arr(arr):
-    cart_arr = np.zeros([len(arr), 2]) # L by 2 np array
-    for i in range(len(arr)):
-        theta = arr[i][0]
-        r = arr[i][1]
+def polar_to_cartesian_arr(r_arr, theta_arr):
+    cart_arr = np.zeros([len(r_arr), 2]) # L by 2 np array
+    for i in range(len(r_arr)):
+        theta = theta_arr[i]
+        r = r_arr[i]
         cart_arr[i][0] = r*math.cos(math.radians(theta)) # x val
         cart_arr[i][1] = r*math.sin(math.radians(theta)) # y val
     return cart_arr
@@ -86,7 +87,28 @@ def scan_local_maxima(data, spacing, frequency):
     lidar_data_maxima = np.array(range_maxima_lst)
     return lidar_data_maxima
 
-
+'''
+Rejects outliers 
+Input:
+    m1, m2, b1, b2 - line equations
+    data1, data2 - data sets
+    tolerance - the acceptable error distance for each point to line
+    quality - the acceptable percentace of non-outlier points per set
+'''
+def outlier_detected(m, b, data, tolerance, quality):
+    outlier = False
+    outlier_count
+    for i in range(len(data)):
+        m_p = (-1/m) # find perpendicular line that intersects /w data pt
+        b_p = data[i][1] - m_p*data[i][0]
+        x_i, y_i = linear_intersection(m, b, m_p, b_p)
+        dist = norm([x_i, y_i], [data[i][0], data[i][1]])
+        if dist > tolerance:
+            outlier_count += 1
+    if (len(data) - outlier_count)/len(data)*100 < quality:
+        outler =True
+    return outlier
+        
 # -- Gets Data on Either Side of Maximum --
 # gets lower and upper ranges while wrapping for values that cross 0deg
 def upper_lower_Polar_Wrap(local_range, index, data):
@@ -201,22 +223,26 @@ def plot_maxima_search_area(l_range, u_range):
         ax1.plot(u_range[j][0]* -np.pi/180, u_range[j][1],'b+')    
     plt.show() 
 
-
-def get_Lidar_scan():
+def init_Lidar_scan():
     # sets the com port of RPLidar:
-    lidar = RPLidar('COM4')    # '/dev/ttyS3' for WSL 
-    scans = []
-    num_datapoints = 0
-        # need several scans (i.e. 10) for complete point cloud
-    for i, scan in enumerate(lidar.iter_scans()):
-            # print('%d: Got %d measures' % (i, len(scan)))
-        scans = scans + [list(item) for item in scan] # convert tuple to list
-        num_datapoints += len(scan)
-        if i > 8:
-            break
+    lidar = RPLidar('COM4')    # '/dev/ttyS3' for WSL
+    lidar_iterator = lidar.iter_scans()
+    return lidar, lidar_iterator
+
+def disconnect_Lidar(lidar):
     lidar.stop()
     lidar.stop_motor()
     lidar.disconnect()
+
+def get_Lidar_scan(iterator, num_iter_scan):
+    scans = []
+    num_datapoints = 0
+    for i in range(num_iter_scan): # may need several scans (i.e. 10) for complete point cloud
+        scan = next(iterator)
+        scans = scans + [list(item) for item in scan] # convert tuple to list
+        num_datapoints += len(scan)
+        if i > num_iter_scan:
+            break
         # fill data array [theta(deg), r(mm)]
     scan_data = np.array(scans)[:,1:]
     return scan_data
@@ -257,25 +283,40 @@ def match_transform(A, B):
 
 
 def main():    
+    # Tuning Parameters:
+    outlier_detection_tolerance = 20 # (mm)
+    outlier_detection_quality = 90 # (%)
+    num_lidar_scans = 4 # (scans)
+    local_maxima_scan_frequency = 1 # (datapoint/datapoint)
+    local_maxima_scan_range = 30 # (datapoints) - each local maxima must be the maximum of this number of datapoints on either side
+    hough_inspection_range = 20 # (datapoints) - this number of data points are sent to HT on either side of maxima
+
+
     num_iter = 0
     corner_data_buffer = []
     state = [0, 0, 0] # state variables defined as x, y, theta
+    state_list = [[0,0,0]]
+    st_ind = 0
+    lidar, lidar_iterator = init_Lidar_scan() # initialize continuous scan
+
+    table = [["Index", "Time", "state", "dX", "dY", "dTheta"]]
+    time_offset = time.time()
 
     # Scans every 5 seconds and measures the change in state
     while True:
-        # -- Choose Data File, Sort, & Index --
-        lidar_data = get_Lidar_scan()
+        # -- Choose Data File, Sort, Index, Get Local Maxima --
+        scan_time = time.time() - time_offset
+        lidar_data = get_Lidar_scan(lidar_iterator, num_lidar_scans)
         lidar_data = lidar_data[lidar_data[:, 0].argsort()]
         indexed_data = label_data(lidar_data)
-        # print(lidar_data)
-        lidar_data_maxima = scan_local_maxima(indexed_data, 30, 1)
-
+        lidar_data_maxima = scan_local_maxima(indexed_data, local_maxima_scan_range, local_maxima_scan_frequency)
+    
         # -- Search Data Around Maxima -- 
         # inspect area left and right of the local maxima and pass to hough transform
-        maxima_inspection_range = 30
         flip_angle = -360
         corners_list = []
         for i in range(len(lidar_data_maxima)):
+            outlier = False
             index = int(lidar_data_maxima[i][2])
             # print("\nInspecting possible corner at", -(lidar_data_maxima[i][0]+flip_angle), "degrees...")
 
@@ -290,38 +331,51 @@ def main():
             m_l, b_l = hough_to_cartesian_line(l_rho, l_theta)
             x_intersection, y_intersection = linear_intersection(m_l, b_l, m_u, b_u)
             edge_angle = abs(np.rad2deg(l_theta) - np.rad2deg(u_theta))
-            # print("lower line:", m_l, "x + ", b_l)
-            # print("upper line:", m_u, "x + ", b_u)
+
+            if(outlier_detected(m_u, b_u, polar_to_cartesian_arr(u_rho, u_theta), outlier_detection_tolerance, outlier_detection_quality) 
+             or outlier_detected(m_l, b_l, polar_to_cartesian_arr(l_rho, l_theta), outlier_detection_tolerance, outlier_detection_quality)):
+                print("Outlier Rejected")
+                outlier = True 
 
             # error_range, A_l_cart, A_u_cart, B_l_cart, B_u_cart, m_A_u, b_A_u, m_B_u, b_B_u, m_A_l, b_A_l, m_B_l, b_B_l = hough_error(l_range, u_range, m_l, m_u, b_l, b_u)
             
-            if(edge_angle < 100 and edge_angle > 80 and (u_acc_max + l_acc_max) > 13): # higher acc_max value means that the line has more clarity
+            if((edge_angle < 100) and (edge_angle > 80) and ((u_acc_max + l_acc_max) > 10) and not(outlier)): # higher acc_max value means that the line has more clarity
                 # print("***********  Corner spotted! At", -(lidar_data_maxima[i][0]+flip_angle), "degrees. **************")
                 corners_list.append([y_intersection, x_intersection])
                 # plot_deviation(A_u_cart, B_u_cart, A_l_cart, B_l_cart, m_A_u, b_A_u, m_B_u, b_B_u, m_A_l, b_A_l, m_B_l, b_B_l)
-                # plot_maxima_search_area(l_range, u_range)
+                plot_maxima_search_area(l_range, u_range)
             # else: print("No corner at", -(lidar_data_maxima[i][0]+flip_angle), "degrees.")
         # print(corners_list)
         
+        # --- Add corners to Sequential Data Buffer ---
         if corners_list: # if list is not empty 
             corner_data_buffer.append(corners_list)
             print("Number of Corners:", len(corners_list))
-            if num_iter > 0:
-                d_x, d_y, d_theta = match_transform(corner_data_buffer[-2], corner_data_buffer[-1])
+            if num_iter > 1: # and (len(corner_data_buffer[-1]) - len(corner_data_buffer[-2]))/2 < len(corner_data_buffer[-2]): # check that the additional number of corners is not too drastic between datasets
+                d_x, d_y, d_theta = match_transform(corner_data_buffer[-2], corner_data_buffer[-1]) 
+                  # Update state variables
                 print("\ndx", d_x, "\ndy", d_y, "\ndTheta", d_theta)
                 state[0] += d_x
                 state[1] += d_y
                 state[2] += d_theta
                 print("state", state)
+                  # Update table
+                state_list.append(state.copy())
+                st_ind += 1
+                table.append([num_iter, scan_time, state_list[st_ind], d_x, d_y, d_theta])
+                print(tabulate(table, headers='firstrow'))
+            num_iter += 1
         else: print("not enough corners")
-        num_iter += 1
-                
+        
+        # Hold 'q' to exit program and disconnect rplidar 
         if keyboard.is_pressed("q"):
-            # Key was pressed
             break
         
-        print("Sleeping...zzz...")
-        time.sleep(5)
+        # print("Sleeping...zzz...\n\n")
+        # time.sleep(.5)
+
+    print(tabulate(table, headers='firstrow'))
+    disconnect_Lidar(lidar)
     
 if __name__ == "__main__":
     main()
