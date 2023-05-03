@@ -56,7 +56,7 @@ for i in range(len(box_data)):
     box_data_polar[i][1] = r
     box_data_polar[i][2] = box_data[i][2]
 
-print(box_data_polar)
+# print(box_data_polar)
 fig = plt.figure()
 ax_b = fig.add_subplot(projection='polar')
 ax_b.set_theta_zero_location("N")
@@ -114,11 +114,18 @@ for i in range(test_data_maxima_sz):
         l_range = box_data_polar[(index - maxima_inspection_range):(index), :]
         u_range = box_data_polar[(index+1):(index+1 + maxima_inspection_range), :]
     
-    l_theta = hough.hough_line(l_range, 2)          # only theta neccessary to show orthogonality
+    l_range_cart = hough.polar_to_cartesian_arr(l_range[:, 0], l_range[:, 1])
+    u_range_cart = hough.polar_to_cartesian_arr(u_range[:, 0], u_range[:, 1])
+
+    l_theta, l_rho, l_max_acc = hough.hough_line(l_range_cart, 2)          # only theta neccessary to show orthogonality
+    # l_theta, l_rho, l_max_acc = hough.hough_line(l_range, 2)          # only theta neccessary to show orthogonality
+    
     print("Lower angle (red):", np.rad2deg(l_theta))
 
     # upper range
-    u_theta = hough.hough_line(u_range, 2)
+    u_theta, u_rho, u_max_acc = hough.hough_line(u_range_cart, 2)
+    # u_theta, u_rho, u_max_acc = hough.hough_line(u_range, 2)
+
     print("Upper angle (blue):", np.rad2deg(u_theta))
     
     # -- Plot Maxima Search Area (lower and upper) -- 

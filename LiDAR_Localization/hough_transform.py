@@ -2,22 +2,22 @@ import numpy as np
 import math
 from matplotlib import pyplot as plt
 
+def polar_to_cartesian_arr(theta_arr, r_arr):
+    cart_arr = np.zeros([len(r_arr), 2]) # L by 2 np array
+    for i in range(len(r_arr)):
+        theta = theta_arr[i]
+        r = r_arr[i]
+        cart_arr[i][0] = r*math.cos(math.radians(theta)) # x val
+        cart_arr[i][1] = r*math.sin(math.radians(theta)) # y val
+    return cart_arr
+
 # code based on https://alyssaq.github.io/2014/understanding-hough-transform/
 
 # Input: 
-#   arr -  an array where the first element is theta and second is range
+#   cart_arr -  an array of cartesian points (x, y)
 #   bin_sz - the bin size for theta values in the accumulator
-def hough_line(arr, bin_sz):
-
-    # convert to cartesian coords
-    cart_arr = np.zeros([len(arr), 2]) # L by 2 np array
-    for i in range(len(arr)):
-        theta = arr[i][0]
-        r = arr[i][1]
-        cart_arr[i][0] = r*math.cos(math.radians(theta)) # x val
-        cart_arr[i][1] = r*math.sin(math.radians(theta)) # y val
+def hough_line(cart_arr, bin_sz):
     # print(cart_arr)
-
     # Find the translation constants (x_trans, y_trans) and apply to the whole data set so the HT can be done in Q1
     x_trans = cart_arr.min(axis=0)[0]
     y_trans = cart_arr.min(axis=0)[1]
@@ -27,7 +27,6 @@ def hough_line(arr, bin_sz):
             cart_arr[i][0] += -x_trans
         if y_trans < 0:
             cart_arr[i][1] += -y_trans  
-
 
     # Rho and Theta ranges
     thetas = np.deg2rad(np.arange(0.0, 180.0, .5))              # defaults to 50 samples from -90 to 90

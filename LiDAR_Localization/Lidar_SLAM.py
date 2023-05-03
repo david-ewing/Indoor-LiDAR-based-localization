@@ -1,5 +1,6 @@
 from rplidar import RPLidar
 import hough_transform as hough
+import Lidar_data_processing as lidarDP
 import icp
 import sys
 import matplotlib.pyplot as plt
@@ -36,9 +37,9 @@ def hough_to_cartesian_line(rho, theta):
     return m, b
 
 def linear_intersection(m1, b1, m2, b2):
-    if (m1 == m2):
-        m2 -= 0.00000000001
-    x = (b2 - b1)/(m1 - m2)
+    if((m1 - m2) == 0):
+        x = (b2 - b1)/0.000000001
+    else: x = (b2 - b1)/(m1 - m2)
     y = m1*x + b1
     return x, y
 
@@ -97,7 +98,7 @@ Input:
 '''
 def outlier_detected(m, b, data, tolerance, quality):
     outlier = False
-    outlier_count
+    outlier_count = 0
     for i in range(len(data)):
         m_p = (-1/m) # find perpendicular line that intersects /w data pt
         b_p = data[i][1] - m_p*data[i][0]
@@ -223,6 +224,15 @@ def plot_maxima_search_area(l_range, u_range):
         ax1.plot(u_range[j][0]* -np.pi/180, u_range[j][1],'b+')    
     plt.show() 
 
+def plot_data(data):
+     # -- Plot Maxima Search Area (lower and upper) -- 
+    fig1, ax1 = plt.subplots(subplot_kw={'projection': 'polar'})
+    ax1.set_theta_zero_location("N")
+    ax1.grid(True)
+    for j in range(len(data)):
+        ax1.plot(data[j][0]* -np.pi/180, data[j][1],'r+')  
+    plt.show() 
+
 def init_Lidar_scan():
     # sets the com port of RPLidar:
     lidar = RPLidar('COM4')    # '/dev/ttyS3' for WSL
@@ -286,11 +296,10 @@ def main():
     # Tuning Parameters:
     outlier_detection_tolerance = 20 # (mm)
     outlier_detection_quality = 90 # (%)
-    num_lidar_scans = 4 # (scans)
+    num_lidar_scans = 8 # (scans)
     local_maxima_scan_frequency = 1 # (datapoint/datapoint)
-    local_maxima_scan_range = 30 # (datapoints) - each local maxima must be the maximum of this number of datapoints on either side
-    hough_inspection_range = 20 # (datapoints) - this number of data points are sent to HT on either side of maxima
-
+    local_maxima_scan_range = 10 # (datapoints) - each local maxima must be the maximum of this number of datapoints on either side
+    hough_inspection_range = 30 # (datapoints) - this number of data points are sent to HT on either side of maxima
 
     num_iter = 0
     corner_data_buffer = []
@@ -302,7 +311,7 @@ def main():
     table = [["Index", "Time", "state", "dX", "dY", "dTheta"]]
     time_offset = time.time()
 
-    # Scans every 5 seconds and measures the change in state
+    # Scans every continuously and measures the change in state
     while True:
         # -- Choose Data File, Sort, Index, Get Local Maxima --
         scan_time = time.time() - time_offset
@@ -310,6 +319,7 @@ def main():
         lidar_data = lidar_data[lidar_data[:, 0].argsort()]
         indexed_data = label_data(lidar_data)
         lidar_data_maxima = scan_local_maxima(indexed_data, local_maxima_scan_range, local_maxima_scan_frequency)
+        plot_data(lidar_data)
     
         # -- Search Data Around Maxima -- 
         # inspect area left and right of the local maxima and pass to hough transform
@@ -321,9 +331,12 @@ def main():
             # print("\nInspecting possible corner at", -(lidar_data_maxima[i][0]+flip_angle), "degrees...")
 
             # get LOWER and UPPER ranges 
-            l_range, u_range = upper_lower_Polar_Wrap(maxima_inspection_range, index, lidar_data)
-            l_theta, l_rho, l_acc_max = hough.hough_line(l_range, 2)
-            u_theta, u_rho, u_acc_max = hough.hough_line(u_range, 2)
+            l_range, u_range = upper_lower_Polar_Wrap(hough_inspection_range, index, lidar_data)
+             # convert to cartesian coords
+            l_cartesian = polar_to_cartesian_arr(l_range[:, 0], l_range[:, 1])
+            u_cartesian = polar_to_cartesian_arr(u_range[:, 0], u_range[:, 1])
+            l_theta, l_rho, l_acc_max = hough.hough_line(l_cartesian, 2)
+            u_theta, u_rho, u_acc_max = hough.hough_line(u_cartesian, 2)
             # print("Lower angle (red):", np.rad2deg(l_theta), l_rho)
             # print("Upper angle (blue):", np.rad2deg(u_theta), u_rho)
             
@@ -332,10 +345,10 @@ def main():
             x_intersection, y_intersection = linear_intersection(m_l, b_l, m_u, b_u)
             edge_angle = abs(np.rad2deg(l_theta) - np.rad2deg(u_theta))
 
-            if(outlier_detected(m_u, b_u, polar_to_cartesian_arr(u_rho, u_theta), outlier_detection_tolerance, outlier_detection_quality) 
-             or outlier_detected(m_l, b_l, polar_to_cartesian_arr(l_rho, l_theta), outlier_detection_tolerance, outlier_detection_quality)):
-                print("Outlier Rejected")
-                outlier = True 
+            # if(outlier_detected(m_u, b_u, u_cartesian, outlier_detection_tolerance, outlier_detection_quality) 
+            #  or outlier_detected(m_l, b_l, l_cartesian, outlier_detection_tolerance, outlier_detection_quality)):
+            #     print("Outlier Rejected")
+            #     outlier = True 
 
             # error_range, A_l_cart, A_u_cart, B_l_cart, B_u_cart, m_A_u, b_A_u, m_B_u, b_B_u, m_A_l, b_A_l, m_B_l, b_B_l = hough_error(l_range, u_range, m_l, m_u, b_l, b_u)
             
@@ -354,11 +367,9 @@ def main():
             if num_iter > 1: # and (len(corner_data_buffer[-1]) - len(corner_data_buffer[-2]))/2 < len(corner_data_buffer[-2]): # check that the additional number of corners is not too drastic between datasets
                 d_x, d_y, d_theta = match_transform(corner_data_buffer[-2], corner_data_buffer[-1]) 
                   # Update state variables
-                print("\ndx", d_x, "\ndy", d_y, "\ndTheta", d_theta)
                 state[0] += d_x
                 state[1] += d_y
                 state[2] += d_theta
-                print("state", state)
                   # Update table
                 state_list.append(state.copy())
                 st_ind += 1
