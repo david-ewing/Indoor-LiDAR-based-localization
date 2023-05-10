@@ -1,8 +1,11 @@
+'''
+Simulated data and script used for debugging
+
+'''
+
 from rplidar import RPLidar
 import hough_transform as hough
-
 import sys
-
 import matplotlib.pyplot as plt
 import numpy as np
 import csv  

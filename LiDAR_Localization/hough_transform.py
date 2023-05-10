@@ -2,18 +2,25 @@ import numpy as np
 import math
 from matplotlib import pyplot as plt
 
-# code based on https://alyssaq.github.io/2014/understanding-hough-transform/
+# Hough transform based on https://alyssaq.github.io/2014/understanding-hough-transform/
 
-# Input: 
-#   cart_arr -  an array of cartesian points (x, y)
-#   bin_sz - the bin size for theta values in the accumulator
 def hough_line(arr, bin_sz):
-    # print(cart_arr)
+    ''' Find the Hough line for the data in arr
+    Input: 
+     - cart_arr: an array of cartesian points (x, y)
+     - bin_sz: the bin size for theta values in the accumulator
+    Output:
+     - theta_acc: theta value of Hough line
+     - rho_acc: rho value of Hough line
+     - max_acc_val: maximum value in the accumulator (used to determine theta, rho)
+    '''
+
     # Find the translation constants (x_trans, y_trans) and apply to the whole data set so the HT can be done in Q1
     cart_arr = arr.copy()
     x_trans = cart_arr.min(axis=0)[0]
     y_trans = cart_arr.min(axis=0)[1]
    
+    # Shift all data into the positive x, y quadrant
     for i in range(len(cart_arr)):
         if x_trans < 0:
             cart_arr[i][0] += -x_trans
@@ -58,85 +65,6 @@ def hough_line(arr, bin_sz):
                 theta_acc = thetas[int(math.floor(t_idx/theta_bin_size))]
                 max_acc_val = accumulator[rho, int(math.floor(t_idx/theta_bin_size))]
 
-    
-    # --- Display Accumulator ---
-    # # Scatter plot 
-    # # !!!!!!!! Runtime Warning !!!!!!!!!
-    # accumulator_data_lst = []
-    # print(accumulator.shape)
-    # for i in range(accumulator.shape[0]): # rho
-    #     for j in range(accumulator.shape[1]): # theta
-    #         if (accumulator[i][j] > 0):
-    #             rho_elt = i - diag_len          # mapping [0, 2*diag] (index) --> [-diag, diag] (real rho value)
-    #             theta_elt = j    # mapping [0, 360] (index) --> [0, 180] (real angle value)
-    #             acc_value = accumulator[i][j]
-    #             accumulator_data_lst.append([theta_elt, rho_elt, acc_value])
-    # accumulator_data = np.array(accumulator_data_lst)
-    
-    # plt.rcParams["figure.figsize"] = [7, 7]
-    # plt.rcParams["figure.autolayout"] = True
-    # plt.scatter(accumulator_data[:, 0], accumulator_data[:, 1], c=accumulator_data[:, 2], s=1) 
-    # plt.xlabel("Theta (degrees)")
-    # plt.ylabel("Rho (mm)")
-    # plt.title("Hough Accumulator")
-    # # Display the plot
-    # plt.show() 
-
-    # # Image display (with intensity)
-    # # Set the figure size
-    # plt.rcParams["figure.figsize"] = [7.00, 3.50]
-    # plt.rcParams["figure.autolayout"] = True
-    # # Random data points
-    # data = accumulator
-    # # Plot the data using imshow with gray colormap
-    # plt.imshow(data, cmap='gray')
-    # plt.xlabel("Theta (deg/2 -90)")
-    # plt.ylabel("Rho (mm)")
-    # plt.title("Hough Accumulator")
-    # # Display the plot
-    # plt.show()
-
-    # np.savetxt("accumulator", accumulator)
-
-    # accumulator_data_lst = []
-    # # print(accumulator.shape)
-    # max_acc_val = 0
-    # hough_theta = 0
-    # hough_rho = 0
-    # for i in range(accumulator.shape[0]): # rho
-    #     for j in range(accumulator.shape[1]): # theta
-    #         if (accumulator[i][j] > 0):
-    #             rho_elt = i - diag_len          # mapping [0, 2*diag] (index) --> [-diag, diag] (real rho value)
-    #             theta_elt = j                   # mapping [0, 360] (index) --> [0, 180] (real angle value)
-    #             if (max_acc_val < accumulator[i][j]):
-    #                 max_acc_val = accumulator[i][j]
-    #                 hough_rho = rho_elt+min_y
-    #                 hough_theta = math.radians(theta_elt)
-    
-    # acc_max_val = accumulator.max()
-    # non_zero = np.count_nonzero(accumulator)
-    # total_val = np.product(accumulator.shape)
-    # sparsity = (total_val - non_zero) / total_val
-    # print(sparsity)
-
-    # print(acc_max_val)
-
-
-    # idx = np.argmax(accumulator)                        # returns the index when searching row by row
-    # if(len(rhos) == 0):
-    #     rho = 0
-    # else: rho = rhos[round(idx / accumulator.shape[1])]
-    # temp = idx % accumulator.shape[1]
-    # theta = thetas[idx % accumulator.shape[1]]          # only theta neccessary to show orthogonality
-
-    # # Undo the translation in polar space
-    # theta = theta*bin_sz # theta stays the same 
-    # if x_trans < 0:
-    #     rho -= -x_trans*math.cos(theta)
-    # if y_trans < 0:
-    #     rho -= -y_trans*math.sin(theta)   
-
-
     # Undo the translation in polar space
     theta_acc = theta_acc*bin_sz # theta stays the same 
     if x_trans < 0:
@@ -145,8 +73,44 @@ def hough_line(arr, bin_sz):
     if y_trans < 0:
         rho_acc -= -y_trans*math.sin(theta_acc)   
 
-    # print(theta, theta_acc)
-    # print(rho, rho_acc)
-
-
     return theta_acc, rho_acc, max_acc_val
+
+
+def scatter_plot_accumulator(accumulator):
+    #  --- Display Accumulator ---
+    # Scatter plot 
+    # !!!!!!!! Runtime Warning !!!!!!!!!
+    accumulator_data_lst = []
+    print(accumulator.shape)
+    for i in range(accumulator.shape[0]): # rho
+        for j in range(accumulator.shape[1]): # theta
+            if (accumulator[i][j] > 0):
+                rho_elt = i - diag_len          # mapping [0, 2*diag] (index) --> [-diag, diag] (real rho value)
+                theta_elt = j    # mapping [0, 360] (index) --> [0, 180] (real angle value)
+                acc_value = accumulator[i][j]
+                accumulator_data_lst.append([theta_elt, rho_elt, acc_value])
+    accumulator_data = np.array(accumulator_data_lst)
+    
+    plt.rcParams["figure.figsize"] = [7, 7]
+    plt.rcParams["figure.autolayout"] = True
+    plt.scatter(accumulator_data[:, 0], accumulator_data[:, 1], c=accumulator_data[:, 2], s=1) 
+    plt.xlabel("Theta (degrees)")
+    plt.ylabel("Rho (mm)")
+    plt.title("Hough Accumulator")
+    # Display the plot
+    plt.show() 
+
+def image_display_accumulator(accumulator):
+    # Image display (with intensity)
+    # Set the figure size
+    plt.rcParams["figure.figsize"] = [7.00, 3.50]
+    plt.rcParams["figure.autolayout"] = True
+    # Random data points
+    data = accumulator
+    # Plot the data using imshow with gray colormap
+    plt.imshow(data, cmap='gray')
+    plt.xlabel("Theta (deg/2 -90)")
+    plt.ylabel("Rho (mm)")
+    plt.title("Hough Accumulator")
+    # Display the plot
+    plt.show()

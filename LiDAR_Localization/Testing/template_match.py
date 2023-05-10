@@ -13,6 +13,9 @@ import math
 # import cv2 as cv
 import icp
 
+'''
+Experiment for verification of ICP 
+'''
 
 corners_I41_23 = [[1822.2525749182169, 1401.408975727723], 
                 [1409.9422098508956, -2055.559826452765], 
