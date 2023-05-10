@@ -1,4 +1,4 @@
-Corner Matching:
+Indoor lindar-based Corner Matching:
 
 a SLAM system which utilizes the SLAMTEC RPLidar A2M8 to identify landmarks (90 degree corners) in an indoor environment and measure the change in position and bearing of the sensor over time.
 
